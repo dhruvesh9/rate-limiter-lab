@@ -2,7 +2,7 @@
 
 Goal: build and validate a single-node, in-memory token bucket limiter before adding HTTP integration or distributed coordination.
 
-Status: proposed
+Status: in progress
 
 ## Scope boundaries
 
@@ -129,3 +129,192 @@ Done when:
 1. `docs: define milestone 1 contract and acceptance criteria`
 2. `docs: record token bucket semantics and concurrency assumptions`
 3. `test-plan: add milestone 1 unit test matrix`
+
+## Immediate next stories
+
+### Story 1: Write the first functional contract
+
+Goal:
+- Document what a single `allow` decision means for one key in the in-memory limiter.
+
+Your task:
+- Update `docs/requirements.md` with a first-pass contract for:
+  - request key
+  - bucket capacity
+  - refill configuration
+  - token cost per request
+  - allow/deny result
+
+Expected output:
+- A short requirements section, not implementation details.
+
+Why this is first:
+- You should not design classes until the behavior is explicit.
+
+Suggested commit:
+- `docs: define milestone 1 limiter contract`
+
+Status:
+- completed
+
+### Story 2: Record semantic decisions
+
+Goal:
+- Freeze the algorithm rules so later tests and code have one source of truth.
+
+Your task:
+- Update `docs/decisions.md` with decisions for:
+  - refill model
+  - initial bucket state
+  - fractional token handling
+  - request cost greater than bucket capacity
+  - thread-safety expectation for milestone 1
+
+Expected output:
+- One concise decision record with rationale and rejected alternatives.
+
+Why this matters:
+- This is where system design becomes engineering instead of general theory.
+
+Suggested commit:
+- `docs: record token bucket semantics`
+
+Status:
+- completed
+
+### Story 3: Propose the HLD
+
+Goal:
+- Describe the moving parts before you design method signatures.
+
+Your task:
+- Add a short high-level design note, either in `docs/system-design.md` or a section in `docs/requirements.md`, covering:
+  - client request identified by key
+  - limiter service
+  - in-memory bucket store
+  - clock/time source
+  - decision result returned to caller
+
+Expected output:
+- A simple component view in words or bullets.
+
+Why this matters:
+- Interviewers expect you to separate algorithm, storage, and integration concerns.
+
+Suggested commit:
+- `docs: add milestone 1 high level design`
+
+Status:
+- completed
+
+### Story 4: Propose the LLD
+
+Goal:
+- Define the smallest object model needed for implementation.
+
+Your task:
+- Write down the candidate interfaces/models only at the design level:
+  - rate limiter interface
+  - bucket state object
+  - rate limit decision/result object
+  - clock abstraction
+
+Expected output:
+- Interface notes and responsibilities, not full code.
+
+Why this matters:
+- Good low-level design keeps the first implementation small and testable.
+
+Suggested commit:
+- `design: sketch milestone 1 low level interfaces`
+
+Status:
+- completed
+
+### Story 5: Write the unit test plan
+
+Goal:
+- Decide how you will prove correctness before you start writing production code.
+
+Your task:
+- Expand the test matrix into named test cases with setup, action, and expected result.
+- Include fake clock usage in the plan.
+
+Expected output:
+- A clear unit-test checklist in `docs/tasks.md` or a dedicated test-plan section.
+
+Why this matters:
+- Time-based code fails at boundaries, not in happy-path demos.
+
+Suggested commit:
+- `test-plan: define milestone 1 token bucket scenarios`
+
+Status:
+- next
+
+### Story 6: Prepare implementation slice
+
+Goal:
+- End Milestone 1 planning with one tiny, safe coding slice.
+
+Your task:
+- Identify the first implementation PR scope:
+  - package creation
+  - interfaces and models
+  - one happy-path unit test
+- Explicitly exclude concurrency hardening and Spring MVC integration from that first slice unless already decided.
+
+Expected output:
+- A narrow implementation plan for the first coding change.
+
+Why this matters:
+- Small slices reduce design mistakes and make review easier.
+
+Suggested commit:
+- `plan: define first implementation slice for limiter core`
+
+Status:
+- next
+
+## Ready-to-code sequence
+
+Follow this order when you start implementation:
+
+1. finalize test scenarios
+2. define the first implementation slice
+3. create domain models and interfaces only
+4. add fake clock support for tests
+5. implement single-threaded algorithm flow
+6. add concurrency protection for same-key access
+7. add concurrency tests
+
+Rule for yourself:
+- do not combine all of these in one commit
+- keep each change reviewable and easy to reason about
+
+## Interview variant backlog
+
+### Variant A: Fixed-cost token bucket under concurrency
+
+Problem statement:
+- each key has an independent bucket
+- each bucket has capacity `N` tokens, with `100` as the default interview example
+- each API call consumes `2` tokens
+- `1` token is added every `1` second
+
+Why this variant matters:
+- it looks simple, but it forces you to reason about shared mutable state
+- the real interview difficulty is usually concurrency correctness, not token math
+
+Key design questions to answer before coding:
+- what happens when available tokens are `1` and a request needs `2`
+- whether refill is calculated lazily on access or by a background scheduler
+- whether same-key concurrent requests must serialize correctly
+- whether different keys should avoid blocking each other
+- what time source and clock precision are assumed
+
+Suggested learning order:
+1. solve it single-threaded with deterministic tests
+2. define the concurrency guarantees
+3. add thread-safety for same-key access
+4. test contention on one key and independence across many keys
